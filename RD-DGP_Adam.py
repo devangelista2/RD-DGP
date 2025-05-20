@@ -9,24 +9,25 @@ from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMe
 
 from IPPy import operators
 from IPPy import utilities as IPutils
-from miscellaneous import data, utilities
+from IPPy.nn import losses
+from miscellaneous import data, initializers, utilities
 
 # --- Set device ---
 device = utilities.get_device()
 print(f"Device used: {device}.")
 
 # --- Configuration ---
-MODEL_PATH = "./model_weights/UNet_128/"
-SAVING_PATH = "./results/UNet_128/"
-GENERATION_TIMESTEPS = 15
+MODEL_PATH = "./model_weights/UNet_256/"
+SAVING_PATH = "./results/UNet_256/"
+GENERATION_TIMESTEPS = 50
 
 NOISE_LEVEL = 0.0
 START_ANGLE, END_ANGLE = 0, 180
-N_ANGLES = 15
+N_ANGLES = 120
 DET_SIZE = 256
 
 RECONSTRUCTION_TIMESTEPS = 15
-NUM_ITER = 200
+NUM_ITER = 0
 STEP_SIZE = 1e-2
 SEED = None
 
@@ -37,7 +38,7 @@ scheduler = DDIMScheduler.from_pretrained(os.path.join(MODEL_PATH, "scheduler"))
 
 # --- Load data ---
 test_data = data.MayoDataset(
-    data_path="../data/Mayo/test",
+    data_path="../data/Mayo/train",
     data_shape=model.config.sample_size,
 )
 x_true = test_data[0].unsqueeze(0).to(device)
@@ -57,11 +58,20 @@ y = K(x_true)
 y_delta = y + IPutils.gaussian_noise(y, NOISE_LEVEL)
 
 # --- Run inversion process ---
-z = torch.randn(x_true.shape, requires_grad=True, device=device)  # z_0
+z = initializers.RandomInitializer(model, scheduler)(seed=None)
+z = initializers.InverseInitializer(model, scheduler)(x_true, num_timesteps=10)
 
 # Set optimizer and loss fn
 optimizer = torch.optim.AdamW([z], lr=STEP_SIZE, weight_decay=0)
-loss_fn = torch.nn.MSELoss()
+loss_fn = losses.MixedLoss(
+    (
+        torch.nn.MSELoss(),
+        torch.nn.SmoothL1Loss(),
+        losses.SSIMLoss(),
+        losses.FourierLoss(),
+    ),
+    weight_parameters=(1, 0, 0, 0),
+)
 
 # Initialize metrics
 psnr_metric = PeakSignalNoiseRatio(data_range=1.0).to(device)
