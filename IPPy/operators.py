@@ -1,10 +1,9 @@
-import numpy as np
-
 import math
+import warnings  # To warn if falling back to CPU
+
+import numpy as np
 import torch
 import torch.nn.functional as F
-
-import warnings  # To warn if falling back to CPU
 
 # Try importing CuPy
 try:
@@ -511,6 +510,12 @@ class CTProjector(Operator):
             pass
 
 
+import math
+
+import torch
+import torch.nn.functional as F
+
+
 class Blurring(Operator):
     def __init__(
         self,
@@ -520,97 +525,92 @@ class Blurring(Operator):
         kernel_size: int = 3,
         kernel_variance: float = 1.0,
         motion_angle: float = 0.0,
+        in_channels: int = 1,
     ):
         """
         Blurring operator using convolution.
 
         Parameters:
-        - kernel (torch.Tensor, optional): Custom kernel for convolution. If `kernel_type` is provided, this is ignored.
-        - kernel_type (str, optional): Type of kernel to use. Supports 'gaussian' and 'motion'.
-        - kernel_size (int, optional): Size of the kernel (for 'gaussian' and 'motion'). Must be an odd integer.
-        - kernel_variance (float, optional): Variance of the Gaussian kernel (only used if kernel_type='gaussian').
-        - motion_angle (float, optional): Angle of motion blur in degrees (only used if kernel_type='motion').
+        - img_shape (tuple[int]): Shape of the image (H, W).
+        - kernel (torch.Tensor, optional): Custom kernel for convolution.
+        - kernel_type (str, optional): 'gaussian' or 'motion'.
+        - kernel_size (int, optional): Size of the kernel.
+        - kernel_variance (float, optional): Variance for Gaussian kernel.
+        - motion_angle (float, optional): Angle in degrees for motion blur.
+        - in_channels (int): Number of image channels (1 for grayscale, 3 for RGB).
         """
         super().__init__()
 
-        # Shape setup
         self.nx, self.ny = img_shape
         self.mx, self.my = img_shape
+        self.in_channels = in_channels
 
         if kernel_type is not None:
+            if kernel_size % 2 == 0:
+                raise ValueError("Kernel size must be an odd integer.")
+
             if kernel_type == "gaussian":
-                if kernel_size % 2 == 0:
-                    raise ValueError("Kernel size must be an odd integer.")
-                self.kernel = self._generate_gaussian_kernel(
+                base_kernel = self._generate_gaussian_kernel(
                     kernel_size, kernel_variance
                 )
             elif kernel_type == "motion":
-                if kernel_size % 2 == 0:
-                    raise ValueError("Kernel size must be an odd integer.")
-                self.kernel = self._generate_motion_kernel(kernel_size, motion_angle)
+                base_kernel = self._generate_motion_kernel(kernel_size, motion_angle)
             else:
                 raise ValueError("kernel_type must be either 'gaussian' or 'motion'")
-        elif kernel is None:
-            raise ValueError("Either `kernel` or `kernel_type` must be provided.")
+
+        elif kernel is not None:
+            base_kernel = kernel
         else:
-            self.kernel = kernel
+            raise ValueError("Either `kernel` or `kernel_type` must be provided.")
 
-        # Ensure kernel is a 4D tensor with shape (out_channels, in_channels, k, k)
-        if len(self.kernel.shape) == 2:
-            self.kernel = self.kernel.unsqueeze(0)
+        # Expand kernel to (C, 1, k, k) for grouped conv2d
+        if len(base_kernel.shape) == 2:
+            base_kernel = base_kernel.unsqueeze(0).unsqueeze(0)  # (1, 1, k, k)
 
-        if len(self.kernel.shape) == 3:
-            # Meaning only the batch dimension in missing
-            self.kernel = self.kernel.unsqueeze(0)
+        if len(base_kernel.shape) == 3:
+            base_kernel = base_kernel.unsqueeze(0)  # (1, 1, k, k)
+
+        self.kernel = base_kernel.repeat(in_channels, 1, 1, 1)  # (C, 1, k, k)
 
     def _generate_gaussian_kernel(
         self, kernel_size: int, kernel_variance: float
     ) -> torch.Tensor:
-        """
-        Generates a Gaussian kernel with the given size and variance.
-        """
         ax = torch.arange(kernel_size) - kernel_size // 2
         xx, yy = torch.meshgrid(ax, ax, indexing="ij")
         kernel = torch.exp(-(xx**2 + yy**2) / (2 * kernel_variance))
-        kernel /= kernel.sum()  # Normalize kernel to sum to 1
+        kernel /= kernel.sum()
         return kernel
 
     def _generate_motion_kernel(self, kernel_size: int, angle: float) -> torch.Tensor:
-        """
-        Generates a motion blur kernel that blurs in a linear direction.
-        """
         kernel = torch.zeros((kernel_size, kernel_size), dtype=torch.float32)
         center = kernel_size // 2
         angle = math.radians(angle)
-
-        # Compute motion blur direction
         dx, dy = math.cos(angle), math.sin(angle)
         for i in range(kernel_size):
             x = int(center + (i - center) * dx)
             y = int(center + (i - center) * dy)
             if 0 <= x < kernel_size and 0 <= y < kernel_size:
                 kernel[y, x] = 1.0
-
-        kernel /= kernel.sum()  # Normalize to keep intensity unchanged
+        kernel /= kernel.sum()
         return kernel
 
     def _matvec(self, x: torch.Tensor) -> torch.Tensor:
         """
         Applies the blurring operator (forward convolution).
+        Assumes x is of shape (B, C, H, W).
         """
-        blurred = F.conv2d(
-            x, self.kernel.to(x.device), padding="same"
-        )  # Apply convolution
-        return blurred
+        return F.conv2d(
+            x, self.kernel.to(x.device), padding="same", groups=self.in_channels
+        )
 
     def _adjoint(self, y: torch.Tensor) -> torch.Tensor:
         """
-        Applies the adjoint operator, which in this case is also a convolution
-        with a flipped kernel (assuming symmetric kernels like Gaussian).
+        Applies the adjoint operator (convolution with flipped kernel).
         """
-        flipped_kernel = torch.flip(self.kernel, dims=[2, 3])  # Flip spatial dimensions
-        adjoint_result = F.conv2d(y, flipped_kernel.to(y.device), padding="same")
-        return adjoint_result
+        flipped_kernel = torch.flip(self.kernel, dims=[2, 3])
+        return F.conv2d(
+            y, flipped_kernel.to(y.device), padding="same", groups=self.in_channels
+        )
 
 
 class DownScaling(Operator):

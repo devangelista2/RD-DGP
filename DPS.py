@@ -10,9 +10,9 @@ from IPPy import utilities as IPutils
 from miscellaneous import model_setup, solvers, utilities
 
 # --- Initialization ---
-CONFIG_NAME = "DiffPIR.yaml"
+CONFIG_NAME = "DPS.yaml"
 
-parser = argparse.ArgumentParser(description="DiffPIR Solver")
+parser = argparse.ArgumentParser(description="Diffusion Posterior Sampling (DPS)")
 parser.add_argument(
     "--config",
     type=str,
@@ -32,8 +32,7 @@ saving_path = utilities.setup_paths(config)
 # --- Setup Logger ---
 # All subsequent log messages will go to console and the file in saving_path
 main_logger = utilities.setup_logger(
-    "DiffPIR_Experiment",
-    os.path.join(saving_path, "diffpir_experiment.log"),
+    "DPS_Experiment", os.path.join(saving_path, "dps_experiment.log")
 )
 main_logger.info(f"Starting experiment with configuration: {args.config}")
 main_logger.info(f"Results will be saved in: {saving_path}")
@@ -68,20 +67,20 @@ main_logger.info(f"Test problem generated. y_delta shape: {y_delta.shape}")
 initial_x_t = torch.randn(x_true.shape, device=device)
 main_logger.info(f"Initial x_t (noise) shape: {initial_x_t.shape}")
 
-# --- Initialize and Run DiffPIRSolver ---
-solver = solvers.DiffPIRSolver(
+# --- Initialize and Run DPSSolver ---
+solver = solvers.DPSSolver(
     model, scheduler, K, y_delta, x_true, config, device, main_logger
 )
 x_reconstructed, psnr_vec, ssim_vec, loss_vec = solver.run_algorithm(initial_x_t)
 
 # --- Saving Results ---
 main_logger.info(f"Saving final results to: {saving_path}")
-torch.save(torch.tensor(psnr_vec), os.path.join(saving_path, "dpir_psnr_history.pth"))
-torch.save(torch.tensor(ssim_vec), os.path.join(saving_path, "dpir_ssim_history.pth"))
-torch.save(torch.tensor(loss_vec), os.path.join(saving_path, "dpir_loss_history.pth"))
+torch.save(torch.tensor(psnr_vec), os.path.join(saving_path, "dps_psnr_history.pth"))
+torch.save(torch.tensor(ssim_vec), os.path.join(saving_path, "dps_ssim_history.pth"))
+torch.save(torch.tensor(loss_vec), os.path.join(saving_path, "dps_loss_history.pth"))
 main_logger.info("Metrics history saved.")
 
-with open(os.path.join(saving_path, "diffpir_config_used.yaml"), "w") as f:
+with open(os.path.join(saving_path, "dps_config_used.yaml"), "w") as f:
     yaml.dump(config, f)
 main_logger.info("Configuration saved.")
 
@@ -96,4 +95,4 @@ utilities.plot_and_save_images(
     main_logger,
 )
 
-main_logger.info("DiffPIR Experiment finished successfully.")
+main_logger.info("DPS Experiment finished successfully.")

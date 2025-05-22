@@ -1,0 +1,39 @@
+ct:
+  det_size: 256
+  end_angle: 180
+  n_angles: 120
+  start_angle: 0
+deblur:
+  kernel_angle: 45
+  kernel_size: 7
+  kernel_type: motion
+device: auto
+diffpir_params:
+  initial_x_fill: zeros
+  lambda_reg: 0.1
+  loop_timesteps: 200
+  sigma_n_sq: 0.01
+dps_params:
+  loop_timesteps: 200
+  step_size: 10.0
+experiment_name: DPS_Deblur_Mayo
+generation_timesteps: 50
+image_channels: 3
+image_path: ./examples/face.png
+model_path: google/ddpm-celebahq-256
+noise_level: 0.01
+operator: Deblur
+reconstruction_timesteps: 15
+results_base_dir: ./results/
+seed: null
+solver:
+  adam_params:
+    lr: 0.001
+    num_iter: 200
+    weight_decay: 0.001
+  lbfgs_params:
+    history_size: 100
+    lr: 1.0
+    max_iter_linesearch: 20
+    num_iter: 50
+  type: Adam
