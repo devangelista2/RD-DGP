@@ -20,24 +20,24 @@ The framework emphasizes flexibility and ease of experimentation through a YAML-
 * **Image Versatility**: Handles both RGB (3-channel) and grayscale (1-channel) images.
 * **Modular Code**: Solver classes for each algorithm and shared utility functions for clean and maintainable code.
 * **Comprehensive Logging**: Built-in logging to console and file for each experiment run.
-* **Batch Experimentation**: Example shell script provided for running sequences of experiments.
-* **Customizable Operators**: Integrates with the `IPPy` library (assumed) for forward operators (e.g., Deblurring, CT).
+* **Customizable Operators**: Integrates with the `IPPy` library for forward operators (e.g., Deblurring, CT).
 
 ## 📂 Project Structure (Example)
 
 ```
 RD-DGP/
 ├── configs/                  # Directory for YAML configuration files
-│   └── main_config.yaml      # Example master configuration file for all experiments
+│   └── mayo_ct.yaml          # Configuration file for CT-based image reconstruction on Mayo's Image
+│   └── mayo_deblur.yaml      # Configuration file for Deblur-based image reconstryction on Mayo's Image
+│   └── celeba_deblur.yaml    # Configuration file for Deblur-based image reconstruction on CelebA's Image
+├── examples/                 # Directory containing a few test images used in the paper
 ├── results/                  # Default base directory for saving experiment outputs
-├── IPPy/                     # User-provided library for operators (assumed external or local)
-├── miscellaneous/            # User-provided library for utilities (assumed external or local)
+├── IPPy/                     # User-provided library for operators 
+├── miscellaneous/            # User-provided library for utilities 
 │   └── utilities.py          # e.g., device getter
-├── run_dgp.py                # Script for DGP experiments
-├── run_dps.py                # Script for DPS experiments
-├── run_diffpir.py            # Script for DiffPIR experiments
+├── algorithms.py             # A list of the functions used for the experiments
 ├── run_generation.py         # Script for unconditional sample generation
-├── CelebA_Deblur.sh          # Example shell script for running a sequence of experiments
+├── main.pt                   # Script for running all the experiments
 └── README.md                 # This file
 ```
 
@@ -48,55 +48,26 @@ RD-DGP/
 * Python 3.8+
 * PyTorch (e.g., 1.10+ or 2.x)
 * `diffusers` and `transformers` libraries from Hugging Face
-* Other common scientific Python packages (NumPy, Matplotlib, etc.)
+* Other common scientific Python packages (`numpy`, `matplotlib`, etc.)
 
 ### Installation
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repo-url> RD-DGP
+    git clone https://github.com/devangelista2/RD-DGP RD-DGP
     cd RD-DGP
     ```
 
-2.  **Create a virtual environment (recommended):**
-    ```bash
-    python -m venv venv
-    # On Linux/macOS:
-    source venv/bin/activate
-    # On Windows:
-    # venv\Scripts\activate
-    ```
-
-3.  **Install dependencies:**
-    Create a `requirements.txt` file with the following content (adjust versions as needed based on your specific setup and library compatibility):
-    ```txt
-    # requirements.txt
-    torch>=1.10.0
-    torchvision
-    torchaudio
-    diffusers>=0.20.0
-    transformers>=4.0.0
-    accelerate>=0.20.0
-    numpy
-    matplotlib
-    PyYAML
-    torchmetrics>=0.7.0
-    Pillow
-    tqdm
-    # If IPPy and miscellaneous are installable packages, add them here.
-    # Otherwise, ensure they are in the PYTHONPATH or correctly structured as local modules.
-    ```
-    Then run:
+2.  **Install dependencies:**
+    Run:
     ```bash
     pip install -r requirements.txt
     ```
-
-4.  **Ensure `IPPy` and `miscellaneous` modules are accessible**:
-    If these are local directories within your project, ensure they are in your `PYTHONPATH` or structured as Python packages that can be imported directly (e.g., by being in the same root directory as your run scripts or installed via `pip install -e .` if they have a `setup.py`).
+    to install all the required dependencies.
 
 ## ⚙️ Configuration
 
-All experiments are controlled via a central YAML configuration file (e.g., `configs/main_config.yaml`). This file contains sections for general settings, model paths, image details, operator parameters, and specific parameters for each algorithm.
+All experiments are controlled via a YAML configuration files (e.g., `configs/mayo_ct.yaml`). This file contains sections for general settings, model paths, image details, operator parameters, and specific parameters for each algorithm.
 
 **Key Configuration Sections Example:**
 
@@ -181,22 +152,22 @@ Each algorithm can be run using its dedicated Python script. Ensure your configu
 
 **Example for running DGP:**
 ```bash
-python run_dgp.py --config configs/main_config.yaml
+python main.py --config configs/<config_file_name>.yaml --dgp
 ```
 
 **Example for running DPS:**
 ```bash
-python run_dps.py --config configs/main_config.yaml
+python main.py --config configs/<config_file_name>.yaml --dps
 ```
 
 **Example for running DiffPIR:**
 ```bash
-python run_diffpir.py --config configs/main_config.yaml
+python main.py --config configs/<config_file_name>.yaml --diffpir
 ```
 
 **Example for running sample generation:**
 ```bash
-python run_generation.py --config configs/main_config.yaml
+python run_generation.py --config configs/<config_file_name>.yaml
 ```
 
 ## 🧪 Implemented Algorithms
@@ -205,14 +176,6 @@ python run_generation.py --config configs/main_config.yaml
 * **Diffusion Posterior Sampling (DPS)**: An iterative method that combines the score of a diffusion model (prior) with the gradient of the likelihood (data consistency) to sample from an approximate posterior distribution.
 * **DiffPIR (Diffusion Model for Plug-and-Play Image Restoration)**: A plug-and-play restoration method that alternates between a data-fidelity update step (e.g., gradient descent) and a denoising step using a pre-trained diffusion model.
 * **Unconditional Generation**: Standard reverse diffusion process (e.g., DDIM sampling) to generate samples from random noise, using a pre-trained `UNet2DModel` and `DDIMScheduler`.
-
-## 💡 Notes
-
-* **Windows Users**: For running `.sh` scripts, ensure you are using a Bash-compatible environment like Git Bash or WSL. If using native Windows shells (`cmd.exe`, PowerShell), you will need to adapt the batch script commands or run Python scripts individually.
-* **Python Environment**: It is highly recommended to use a virtual environment (e.g., venv, conda) to manage dependencies and avoid conflicts.
-* **Model Compatibility**: Ensure the chosen diffusion model (from local path or Hugging Face Hub) is compatible with the `UNet2DModel` class from `diffusers` and matches the `image_channels` and `image_size` specified in your configuration for optimal results.
-* **Paths**: Relative paths in the configuration file are typically resolved with respect to the location where the Python script is executed. It's often good practice to use absolute paths or ensure consistency.
-* **`IPPy` and `miscellaneous`**: These are assumed to be user-provided modules. Ensure they are correctly placed and importable by your Python scripts.
 
 ## 📜 License
 ```
