@@ -3,10 +3,12 @@ import logging
 import os
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import yaml
 from PIL import Image
 from torchvision import transforms
+from torchvision.utils import save_image
 
 
 def get_device(config_device, logger):
@@ -54,6 +56,7 @@ def plot_and_save_images(x_true, y_delta, x_gen, ssim_val, save_path, config, lo
         y_plot = y_delta.detach().cpu().squeeze(0).numpy()
         if y_plot.ndim == 3 and y_plot.shape[0] == 1:
             y_plot = y_plot.squeeze(0)
+        plt.subplot(1, 3, 2)
         plt.imshow(y_plot, cmap="gray", aspect="auto")
         plt.title("Corrupted (Sinogram)")
     else:
@@ -74,6 +77,35 @@ def plot_and_save_images(x_true, y_delta, x_gen, ssim_val, save_path, config, lo
     plt.savefig(image_save_path, dpi=400)
     plt.close()
     logger.info(f"Reconstruction image saved to: {image_save_path}")
+
+
+def save_generated_images(samples, saving_path, gen_config, logger):
+    """Saves generated samples to files."""
+    save_format = gen_config.get("save_format", "grid")
+    prefix = gen_config.get("output_filename_prefix", "generated_sample")
+
+    # Normalize samples from [-1, 1] to [0, 1] for saving
+    samples = (samples.clamp(-1, 1) + 1.0) / 2.0
+
+    if save_format == "grid":
+        grid_path = os.path.join(saving_path, f"{prefix}_grid.png")
+        # Determine nrow for make_grid, e.g., sqrt(batch_size) or a fixed number like 4
+        nrow = (
+            int(np.sqrt(samples.shape[0]))
+            if int(np.sqrt(samples.shape[0])) ** 2 == samples.shape[0]
+            else min(samples.shape[0], 4)
+        )
+        save_image(samples, grid_path, nrow=nrow)
+        logger.info(f"Saved image grid to: {grid_path}")
+    elif save_format == "individual":
+        for i, sample in enumerate(samples):
+            img_path = os.path.join(saving_path, f"{prefix}_{i:03d}.png")
+            save_image(
+                sample, img_path
+            )  # save_image handles individual tensors correctly
+        logger.info(f"Saved {len(samples)} individual images to: {saving_path}")
+    else:
+        logger.warning(f"Unknown save_format: {save_format}. Images not saved.")
 
 
 def load_and_preprocess_image(config, target_size, device, logger):

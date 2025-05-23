@@ -119,7 +119,7 @@ class DGPSolver:
         self.logger.info("LBFGS optimization phase finished.")
 
     def run_optimization(self):
-        solver_config = self.config["solver"]
+        solver_config = self.config["dgp_params"]
         solver_type = solver_config["type"]
         self.logger.info(f"Starting optimization with solver type: {solver_type}")
         start_time = time.time()
