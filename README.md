@@ -27,17 +27,16 @@ The framework emphasizes flexibility and ease of experimentation through a YAML-
 ```
 RD-DGP/
 ├── configs/                  # Directory for YAML configuration files
-│   └── mayo_ct.yaml          # Configuration file for CT-based image reconstruction on Mayo's Image
-│   └── mayo_deblur.yaml      # Configuration file for Deblur-based image reconstryction on Mayo's Image
-│   └── celeba_deblur.yaml    # Configuration file for Deblur-based image reconstruction on CelebA's Image
-├── examples/                 # Directory containing a few test images used in the paper
-├── results/                  # Default base directory for saving experiment outputs
+│   └── mayo_ct.yaml          # Configuration file
+│   └── mayo_deblur.yaml      # Configuration file
+│   └── celeba_deblur.yaml    # Configuration file
+├── examples/                 # Directory containing a few test images
 ├── IPPy/                     # User-provided library for operators 
 ├── miscellaneous/            # User-provided library for utilities 
 │   └── utilities.py          # e.g., device getter
-├── algorithms.py             # A list of the functions used for the experiments
-├── run_generation.py         # Script for unconditional sample generation
-├── main.pt                   # Script for running all the experiments
+├── algorithms.py             # Functions used for the experiments
+├── run_generation.py         # Unconditional sample generation
+├── main.py                   # Script for running all the experiments
 └── README.md                 # This file
 ```
 
@@ -45,8 +44,8 @@ RD-DGP/
 
 ### Prerequisites
 
-* Python 3.8+
-* PyTorch (e.g., 1.10+ or 2.x)
+* Python 3.10+
+* PyTorch 2.x
 * `diffusers` and `transformers` libraries from Hugging Face
 * Other common scientific Python packages (`numpy`, `matplotlib`, etc.)
 
@@ -177,33 +176,5 @@ python run_generation.py --config configs/<config_file_name>.yaml
 * **DiffPIR (Diffusion Model for Plug-and-Play Image Restoration)**: A plug-and-play restoration method that alternates between a data-fidelity update step (e.g., gradient descent) and a denoising step using a pre-trained diffusion model.
 * **Unconditional Generation**: Standard reverse diffusion process (e.g., DDIM sampling) to generate samples from random noise, using a pre-trained `UNet2DModel` and `DDIMScheduler`.
 
-## 📜 License
-```
-MIT License
-
-Copyright (c) [Current Year] [Your Name or Project Name]
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-## 🙏 Acknowledgements
-
-* This work builds upon the foundations laid by numerous researchers in diffusion models and inverse problems.
-* Utilizes the `diffusers` library by Hugging Face.
-* Inspired by [mention key papers, e.g., for DGP, DPS, DiffPIR if you followed specific ones closely, or repositories if applicable].
+## 🙏 Cite us
+[Will be provided after publication]
