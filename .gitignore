@@ -2,6 +2,9 @@
 data/
 model_weights/
 
+results/
+results_for_paper/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

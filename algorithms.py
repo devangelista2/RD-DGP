@@ -124,7 +124,6 @@ def run_dps(model, scheduler, config, logger, device):
         config,
         logger,
     )
-
     return x_reconstructed, psnr_vec, ssim_vec
 
 

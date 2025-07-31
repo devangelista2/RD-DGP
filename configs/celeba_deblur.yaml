@@ -12,7 +12,7 @@ results_base_dir: "./results/"          # Base directory for saving results
 image_channels: 3 # 1 for grayscale, 3 for RGB
 
 # Diffusion model settings
-generation_timesteps: 50
+generation_timesteps: 200
 reconstruction_timesteps: 15
 
 # Operator settings
@@ -33,8 +33,11 @@ deblur:
   kernel_angle: 45 # degrees, for motion blur
 
 # DGP Algorithm Settings
-solver:
-  type: "Adam"  # Options: "Adam", "LBFGS", "Adam_LBFGS"
+dgp_params:
+  type: "Adam"  # Options: "Adam", "LBFGS", "Adam-LBFGS"
+  fidelity: "mse" # Options: "mse"
+  reg_x: "TV" # Options: "none", "TV"
+  lmbda_x: 1
   
   # Parameters for Adam/AdamW
   adam_params:

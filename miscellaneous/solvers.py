@@ -2,6 +2,7 @@ import time
 
 import torch
 from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from miscellaneous import utilities
 
 
 # --- DGPSolver Class ---
@@ -19,7 +20,8 @@ class DGPSolver:
         self.device = device
         self.logger = logger
 
-        self.loss_fn = torch.nn.MSELoss()
+        self.loss_fn = self._get_fidelity()
+        self.reg_x = self._get_regularizer_x()
         self.psnr_metric = PeakSignalNoiseRatio(data_range=1.0).to(device)
         self.ssim_metric = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
 
@@ -48,7 +50,10 @@ class DGPSolver:
 
     def _evaluate_metrics_and_loss(self, x_gen_normalized):
         """Computes loss and metrics, and records them."""
-        loss = self.loss_fn(self.K(x_gen_normalized), self.y_delta)
+        dgp_config = self.config["dgp_params"]
+        loss = self.loss_fn(self.K(x_gen_normalized), self.y_delta) + self.reg_x(
+            x_gen_normalized
+        )
         with torch.no_grad():
             psnr_val = self.psnr_metric(x_gen_normalized, self.x_true).item()
             ssim_val = self.ssim_metric(x_gen_normalized, self.x_true).item()
@@ -57,6 +62,40 @@ class DGPSolver:
         self.ssim_history.append(ssim_val)
         self.loss_history.append(loss.item())
         return loss, psnr_val, ssim_val
+
+    def _get_fidelity(self):
+        if self.config["dgp_params"]["fidelity"].lower() == "mse":
+            return torch.nn.MSELoss()
+        else:
+            raise NotImplementedError(
+                f"Fidelity term {self.config['dgp_params']['fidelity']} does not exists."
+            )
+
+    def _get_regularizer_x(self):
+        self.logger.info(
+            f"Using {self.config['dgp_params']['reg_x']} regularizer"
+            + f" (param. reg. {self.config['dgp_params']['lmbda_x']:0.4f})."
+        )
+        if self.config["dgp_params"]["reg_x"].lower() == "none":
+            return lambda x: 0
+        elif self.config["dgp_params"]["reg_x"].lower() == "tv":
+            return utilities.TotalVariationRegularizer(
+                self.config["dgp_params"]["lmbda_x"]
+            )
+        elif self.config["dgp_params"]["reg_x"].lower() == "red":
+            # Load model RED reconstructor
+            rec_model = utilities.load_RED_model(
+                self.config["dgp_params"]["RED_weights_path"],
+                n_ch=1,
+                device=self.device,
+            )
+            return utilities.REDRegularizer(
+                rec_model, self.config["dgp_params"]["lmbda_x"]
+            )
+        else:
+            raise NotImplementedError(
+                f"Regularization term {self.config['dgp_params']['reg_x']} does not exists."
+            )
 
     def _optimize_adam(self, num_iter, lr, weight_decay, start_time):
         self.logger.info(
@@ -71,10 +110,12 @@ class DGPSolver:
             loss.backward()
             optimizer.step()
 
+            with torch.no_grad():
+                z_norm = torch.norm(self.z)
             self.total_steps_elapsed += 1
             self.logger.info(
                 f"(Adam - Time {time.time() - start_time:0.2f}s) Step {self.total_steps_elapsed:03d} (Adam step {step+1:03d}) | "
-                f"Loss: {loss.item():.4f} | PSNR: {psnr_val:.2f} | SSIM: {ssim_val:.4f}"
+                f"Loss: {loss.item():.4f} | ||z||: {z_norm:.2f} | PSNR: {psnr_val:.2f} | SSIM: {ssim_val:.4f}"
             )
         self.logger.info("Adam optimization phase finished.")
 

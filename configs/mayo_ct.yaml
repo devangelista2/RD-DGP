@@ -1,11 +1,11 @@
 # General settings
 experiment_name: "Mayo"
-seed: null # or an integer, e.g., 42
+seed: 42 # or an integer, e.g., 42
 device: "auto" # "auto", "cuda", "cpu"
 
 # Paths
-model_path: "model_weights/MI_UNet_256" # Path to the UNet model directory
-image_path: "./examples/Mayo1.png"    # Path to the true image
+model_path: "model_weights/UNet_256_Large_L" # Path to the UNet model directory
+image_path: "./examples/Mayo2.png"    # Path to the true image
 results_base_dir: "./results/"          # Base directory for saving results
 
 # Image settings
@@ -17,47 +17,54 @@ reconstruction_timesteps: 15
 
 # Operator settings
 operator: "CT" # "Deblur" or "CT"
-noise_level: 0.01
+noise_level: 0.02
 
 # CT specific parameters (if operator is "CT")
 ct:
   start_angle: 0
-  end_angle: 180
-  n_angles: 120
+  end_angle: 60
+  n_angles: 15
   det_size: 512
 
 # Deblurring specific parameters (if operator is "Deblur")
 deblur:
-  kernel_type: "motion" # "gaussian", "motion", "box"
+  kernel_type: "gaussian" # "gaussian", "motion", "box"
   kernel_size: 7
   kernel_angle: 45 # degrees, for motion blur
 
-# DGP Algorithm Settings
+
+### DGP Algorithm Settings
 dgp_params:
   type: "Adam"  # Options: "Adam", "LBFGS", "Adam_LBFGS"
+  fidelity: "mse" # Options: "mse"
+  reg_x: "TV" # Options: "none", "TV", "RED"
+  RED_weights_path: "./model_weights/RED/Mayo256_180_120_UNet.pth" # Used only if reg_x: "RED" is selected
+  lmbda_x: 1.e-4
   
-  # Parameters for Adam/AdamW
+# Parameters for Adam/AdamW
   adam_params:
-    num_iter: 200       # Number of Adam iterations for its phase
-    lr: 1.0e-2
-    weight_decay: 0 # For AdamW
+    num_iter: 130
+          # Number of Adam iterations for its phasec
+    lr: 1.e-2
+    weight_decay: 0 # For AdamW Tikhonov su z
     
-  # Parameters for LBFGS
+# Parameters for LBFGS
   lbfgs_params:
-    num_iter: 50       # Number of LBFGS update steps for its phase
+    num_iter: 50    # Number of LBFGS update steps for its phase
     lr: 1.0            # LBFGS learning rate (can be sensitive)
     history_size: 100
     max_iter_linesearch: 20 # PyTorch LBFGS's internal max_iter for line search per LBFGS step
 
 # DPS Algorithm Settings
 dps_params:
-  loop_timesteps: 200 
-  step_size: 10.0     # This is the guidance scale (eta)
+  loop_timesteps: 200                           
+  step_size: 0.01    # This is the guidance scale (eta)
 
 # DiffPIR Algorithm Settings
 diffpir_params:
-  loop_timesteps: 200    # Number of iterations for the DiffPIR loop
-  lambda_reg: 0.1        # Regularization parameter for the data fidelity step (like a step size)
-  sigma_n_sq: 0.01       # Assumed variance (sigma_n^2) for the fidelity term. 
+  loop_timesteps: 100    # Number of iterations for the DiffPIR loop
+  lambda_reg: 0.01    # Regularization parameter for the data fidelity step (like a step size)
+  sigma_n_sq: 1.e-5       # Assumed variance (sigma_n^2) for the fidelity term. 
                          # If original SIGMA_N was 0.1, then SIGMA_N**2 is 0.01.
   initial_x_fill: "zeros" # How to initialize x: "zeros" or "randn" (for [-1,1] range)
+
