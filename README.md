@@ -1,180 +1,63 @@
-# RD-DGP: Regularized Diffusion-based Deep Generative Prior 🚀
+# RD-DGP: Regularized Diffusion-based Deep Generative Prior
 
-## Overview
+RD-DGP is a research codebase for CT reconstruction and inverse problems using diffusion-model priors. It includes training/finetuning a MONAI DiffusionModelUNet on CT slices and running several reconstruction pipelines (DGP, DPS, DiffPIR, DDRM) with a DDIM scheduler.
 
-RD-DGP is a Python framework designed for solving imaging inverse problems by leveraging the power of pre-trained diffusion models as priors. This project implements and allows experimentation with several cutting-edge algorithms, including:
+**Key scripts**
+- `src/train.py`: Train a MONAI diffusion UNet on a folder of clean PNG slices.
+- `src/finetune.py`: Same pipeline as training, intended for finetuning from a checkpoint.
+- `src/run_dgp.py`: DGP reconstruction on simulated CT measurements.
+- `src/run_compare.py`: Compare DPS, DiffPIR, and DDRM on the same CT measurement.
+- `src/sample_grid.py`: Generate a grid of samples from a trained UNet.
 
-* **Deep Generative Prior (DGP-style)**: Optimizing in the latent space of a diffusion model.
-* **Diffusion Posterior Sampling (DPS)**: Iteratively sampling from an approximate posterior distribution.
-* **DiffPIR (Diffusion Model for Plug-and-Play Image Restoration)**: An iterative method combining data consistency with diffusion model denoising.
-* **Unconditional Sample Generation**: For generating samples directly from the diffusion model.
+**Directory layout**
+- `configs/default_monai.yaml`: UNet architecture settings. Must match training settings.
+- `src/materials/`: Pipelines and utilities.
+- `outputs/`: Experiment outputs (created at runtime).
 
-The framework emphasizes flexibility and ease of experimentation through a YAML-based configuration system, support for various models (local and Hugging Face Hub), and dynamic handling of RGB or grayscale images.
+## Requirements
+- Python 3.10+
+- PyTorch (CUDA optional but recommended for speed)
 
-
-## ✨ Features
-
-* **Multiple Inversion Algorithms**: Implements DGP, DPS, and DiffPIR.
-* **Config-Driven**: Easily manage all experimental parameters via YAML files.
-* **Flexible Model Loading**: Supports local model paths and direct loading from Hugging Face Hub (`UNet2DModel`).
-* **Image Versatility**: Handles both RGB (3-channel) and grayscale (1-channel) images.
-* **Modular Code**: Solver classes for each algorithm and shared utility functions for clean and maintainable code.
-* **Comprehensive Logging**: Built-in logging to console and file for each experiment run.
-* **Customizable Operators**: Integrates with the `IPPy` library for forward operators (e.g., Deblurring, CT).
-
-## 📂 Project Structure (Example)
-
-```
-RD-DGP/
-├── configs/                  # Directory for YAML configuration files
-│   └── mayo_ct.yaml          # Configuration file
-│   └── mayo_deblur.yaml      # Configuration file
-│   └── celeba_deblur.yaml    # Configuration file
-├── examples/                 # Directory containing a few test images
-├── IPPy/                     # User-provided library for operators 
-├── miscellaneous/            # User-provided library for utilities 
-│   └── utilities.py          # e.g., device getter
-├── algorithms.py             # Functions used for the experiments
-├── run_generation.py         # Unconditional sample generation
-├── main.py                   # Script for running all the experiments
-└── README.md                 # This file
-```
-
-## 🛠️ Setup
-
-### Prerequisites
-
-* Python 3.10+
-* PyTorch 2.x
-* `diffusers` and `transformers` libraries from Hugging Face
-* Other common scientific Python packages (`numpy`, `matplotlib`, etc.)
-
-### Installation
-
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/devangelista2/RD-DGP RD-DGP
-    cd RD-DGP
-    ```
-
-2.  **Install dependencies:**
-    Run:
-    ```bash
-    pip install -r requirements.txt
-    ```
-    to install all the required dependencies.
-
-## ⚙️ Configuration
-
-All experiments are controlled via a YAML configuration files (e.g., `configs/mayo_ct.yaml`). This file contains sections for general settings, model paths, image details, operator parameters, and specific parameters for each algorithm.
-
-**Key Configuration Sections Example:**
-
-```yaml
-# General Settings
-device: "auto"             # "cuda", "cpu", "auto"
-seed: 42
-results_base_dir: "./results/MyExperiments/"
-
-# Model Configuration
-model_path: "google/ddpm-celebahq-256" # Hugging Face ID or local path like "./model_weights/UNet_Custom/"
-
-# Image Settings (for inverse problems)
-image_path: "./data/sample_image.png"
-image_channels: 3          # 1 for grayscale, 3 for RGB
-image_size: 256            # Target size (height, width), or single int for square
-
-# Operator Settings
-operator: "Deblur"         # "Deblur", "CT", etc.
-noise_level: 0.05          # Noise added to degrade the clean observation y
-
-# CT Parameters (if operator is "CT")
-ct:
-  start_angle: 0
-  end_angle: 180
-  n_angles: 90
-  det_size: 256
-
-# Deblurring Parameters (if operator is "Deblur")
-deblur:
-  kernel_type: "gaussian"  # "gaussian", "motion", "box"
-  kernel_size: 21
-  # motion_angle: 45 # if kernel_type is "motion"
-
-# --- Algorithm-Specific Parameters ---
-
-# For run_generation.py
-generation_script_params:
-  experiment_name: "MySampleGeneration"
-  batch_size: 4
-  num_inference_steps: 50
-  eta_ddim: 0.0
-  save_format: "grid"    # "grid" or "individual"
-  output_filename_prefix: "generated_img"
-
-# For run_dps.py
-dps_params:
-  # experiment_name is set by setup_paths using config['generation_script_params']['experiment_name'] or a default
-  loop_timesteps: 100
-  step_size: 0.5         # DPS guidance scale (eta)
-
-# For run_diffpir.py
-diffpir_params:
-  # experiment_name similar to DPS
-  loop_timesteps: 50
-  lambda_reg: 0.1
-  sigma_n_sq: 0.01       # Assumed variance (sigma_n^2) for fidelity term
-  initial_x_fill: "randn" # "zeros" or "randn"
-
-# For run_dgp.py
-reconstruction_timesteps: 20 # Timesteps for inner diffusion loop during optimization
-generation_timesteps: 50     # Timesteps for final image generation post-optimization
-solver:
-  # experiment_name similar to DPS
-  type: "Adam"           # "Adam", "LBFGS", "Adam_LBFGS"
-  adam_params:
-    num_iter: 200
-    lr: 1.0e-3
-    weight_decay: 1.0e-4
-  lbfgs_params:
-    num_iter: 50
-    lr: 0.8
-    history_size: 100
-    max_iter_linesearch: 20
-```
-
-## 🚀 Usage
-
-### Running Individual Experiments
-
-Each algorithm can be run using its dedicated Python script. Ensure your configuration file (e.g., `configs/main_config.yaml`) is correctly set up for the desired experiment.
-
-**Example for running DGP:**
+Install dependencies:
 ```bash
-python main.py --config configs/<config_file_name>.yaml --dgp
+pip install -r requirements.txt
 ```
 
-**Example for running DPS:**
+## Data format
+Training expects a directory of PNG files. The loader recursively finds `*.png` under `--data_path` and treats each as a grayscale image. Images are scaled to `[0, 1]` by MONAI transforms, then mapped to `[-1, 1]` before diffusion training.
+
+Samples used in the paper associated with this repository are available at the following link: **TODO**.
+
+## Configuration
+`configs/default_monai.yaml` defines the UNet architecture (channels, attention levels, layers). Keep this file consistent with `src/train.py` and `src/finetune.py` if you change the model.
+
+## Usage
+### Train a diffusion UNet
 ```bash
-python main.py --config configs/<config_file_name>.yaml --dps
+python src/train.py --data_path <path_to_png_folder> --output_dir outputs/train
 ```
 
-**Example for running DiffPIR:**
+### Finetune a diffusion UNet
 ```bash
-python main.py --config configs/<config_file_name>.yaml --diffpir
+python src/finetune.py --data_path <path_to_png_folder> --output_dir outputs/finetune
 ```
 
-**Example for running sample generation:**
+### Run DGP reconstruction
 ```bash
-python run_generation.py --config configs/<config_file_name>.yaml
+python src/run_dgp.py --input <clean_png> --weights <path_to_unet.pth> --config configs/default_monai.yaml
 ```
 
-## 🧪 Implemented Algorithms
+### Compare DPS, DiffPIR, DDRM
+```bash
+python src/run_compare.py --input <clean_png> --weights <path_to_unet.pth> --config configs/default_monai.yaml
+```
 
-* **Deep Generative Prior (DGP-style)**: Optimizes a latent code `z` to minimize a data consistency loss, where the image is generated by `x = G(z)` using a diffusion model `G` as the generator.
-* **Diffusion Posterior Sampling (DPS)**: An iterative method that combines the score of a diffusion model (prior) with the gradient of the likelihood (data consistency) to sample from an approximate posterior distribution.
-* **DiffPIR (Diffusion Model for Plug-and-Play Image Restoration)**: A plug-and-play restoration method that alternates between a data-fidelity update step (e.g., gradient descent) and a denoising step using a pre-trained diffusion model.
-* **Unconditional Generation**: Standard reverse diffusion process (e.g., DDIM sampling) to generate samples from random noise, using a pre-trained `UNet2DModel` and `DDIMScheduler`.
+### Sample generation grid
+```bash
+python src/sample_grid.py --weights <path_to_unet.pth> --config configs/default_monai.yaml
+```
 
-## 🙏 Cite us
-[Will be provided after publication]
+## Pre-trained model
+The weights of the pre-trained model used to run the experiments on the paper associated with this repository, can be downloaded from the following link: TODO.
+
+By default, the bash files in the `experiments/` folder expects the downloaded folder of the weights to be placed in the path: `./outputs/model_weights/`.
