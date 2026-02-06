@@ -1,9 +1,10 @@
 # data
-data/
-model_weights/
+outputs/model_weights/
 
-results/
-results_for_paper/
+*.bin
+*.safetensors
+*.pth
+*.pt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,0 +1,17 @@
+{
+    "input": "../data/Mayo/test/C081/79.png",
+    "weights": "./outputs/model_weights/monai_finetune/finetuned_best.pth",
+    "config": "./configs/default_monai.yaml",
+    "num_angles": 45,
+    "noise_sigma": 0.005,
+    "dps_steps": 200,
+    "diffpir_steps": 50,
+    "ddrm_steps": 30,
+    "dps_zeta": 0.5,
+    "diffpir_lambda": 5.0,
+    "diffpir_rho": 1.0,
+    "output_dir": "outputs/comparison_ct",
+    "device": "cuda",
+    "seed": 42,
+    "snapshot_interval": 5
+}

@@ -1,0 +1,18 @@
+{
+    "input": "../data/Mayo/train/C002/0.png",
+    "weights": "./outputs/model_weights/monai_finetune/finetuned_best.pth",
+    "config": "./configs/default_monai.yaml",
+    "num_angles": 60,
+    "noise_sigma": 0.005,
+    "output_dir": "outputs/dgp_ct_fixed_60",
+    "device": "cuda",
+    "ddim_steps": 30,
+    "ddim_start_steps": null,
+    "ddim_end_steps": null,
+    "opt_steps": 100,
+    "lr": 0.001,
+    "lambda_reg": 0.0,
+    "lambda_tv": 0.0,
+    "seed": 42,
+    "snapshot_interval": 5
+}
